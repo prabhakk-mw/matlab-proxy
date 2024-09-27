@@ -65,7 +65,7 @@ TESTS_REQUIRES = [
 ]
 
 INSTALL_REQUIRES = [
-    "aiohttp>=3.7.4",
+    "aiohttp>=3.7.4, !=3.10.1",
     "aiohttp_session[secure]",
     "importlib-metadata",
     "importlib-resources",
@@ -78,7 +78,7 @@ long_description = (HERE / "README.md").read_text()
 
 setuptools.setup(
     name="matlab-proxy",
-    version="0.23.0",
+    version="0.23.1",
     url=config["doc_url"],
     author="The MathWorks, Inc.",
     author_email="cloud@mathworks.com",
