@@ -1,0 +1,38 @@
+{
+    "name": "MATLAB & MATLAB Proxy",
+    "build": {
+        "dockerfile": "Dockerfile",
+        "context": ".",
+        "args": {
+            "PYTHON_VERSION" : "3.11",
+            "NVM_VERSION" : "0.40.3",
+            "NODE_VERSION" : "24",
+            "MATLAB_RELEASE" : "R2025b",
+            "UBUNTU_VERSION" : "24.04",
+            "MATLAB_PRODUCT_LIST" : "MATLAB"
+        }
+    },
+    "containerEnv": {
+        // Configure for internal usage, move to github secrets
+        "NPM_CONFIG_REGISTRY": "https://mw-npm-repository.mathworks.com/artifactory/api/npm/npm-repos/",
+        "MWI_SESSION_NAME": "DevContainer"
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.python",
+                "MathWorks.language-matlab"
+            ],
+            "settings": {
+                "MATLAB.signIn": true,
+                "python.terminal.activateEnvInCurrentTerminal": true,
+                "python.defaultInterpreterPath": ".venv/bin/python"
+            }
+        }
+    },
+    // By default build the 
+    "postStartCommand": {
+        "install-matlab-proxy" : "uv venv --clear --python 3.11 && . .venv/bin/activate && uv pip install .",
+        "finish-message" : "echo 'Open New Terminal to use the virtual environment!'"
+    }
+}
