@@ -9,7 +9,7 @@
             "NODE_VERSION" : "20"
         }
     },
-    
+    "onCreateCommand" : "apt update && apt install python3 python3-pip",
     "customizations": {
         "vscode": {
             "extensions": [
@@ -18,7 +18,5 @@
             "settings": {
             }
         }
-    },
-    // By default build the 
-    "postStartCommand": "uv venv --clear --python 3.11 && . .venv/bin/activate && uv pip install ."
+    }
 }
