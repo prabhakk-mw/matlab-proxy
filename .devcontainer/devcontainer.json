@@ -6,7 +6,7 @@
         "args": {
             "PYTHON_VERSION" : "3.11",
             "NVM_VERSION" : "0.40.3",
-            "NODE_VERSION" : "20"
+            "NODE_VERSION" : "18"
         }
     },
     "customizations": {
