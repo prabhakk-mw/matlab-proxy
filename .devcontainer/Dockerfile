@@ -22,6 +22,8 @@ RUN apt-get update && \
     unzip \
     xvfb \
     fluxbox \
+    python3 \
+    python3-pip \
     ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
