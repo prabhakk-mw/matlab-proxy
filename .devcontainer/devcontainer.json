@@ -18,5 +18,5 @@
             }
         }
     },
-    "postCreateCommand" : "rm -rf gui/node_modules gui/package-lock.json matlab_proxy/gui && uv venv --clear --python 3.11 && source .venv/bin/activate && uv pip install . --cache-dir . --verbose"
+    "postCreateCommand" : "rm -rf gui/package-lock.json && uv venv --clear --python 3.11 && . .venv/bin/activate && uv pip install . --cache-dir . --verbose"
 }
