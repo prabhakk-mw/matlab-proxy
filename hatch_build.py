@@ -3,10 +3,20 @@
 import os
 import subprocess
 from pathlib import Path
-from shutil import copytree, which
+from shutil import copytree, which, rmtree, move
 from typing import Any, Dict
 
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
+
+
+def _get_npm() -> Path:
+    """Return path to npm executable, raise error if not found."""
+    npm_path = which("npm")
+    if npm_path is None:
+        raise EnvironmentError(
+            "npm is not installed or not found in PATH. Please install Node.js and npm to proceed."
+        )
+    return npm_path
 
 
 class CustomBuildHook(BuildHookInterface):
@@ -16,59 +26,41 @@ class CustomBuildHook(BuildHookInterface):
     def initialize(self, version: str, build_data: Dict[str, Any]) -> None:
         """Run npm install and build, then copy files to package."""
 
-        # Ensure npm is present
-        npm_path = which("npm")
-        if not npm_path:
-            raise Exception(
-                "npm must be installed and on the path during package build!"
-            )
+        npm_path = _get_npm()
 
         # Adding retries to npm install to avoid transient rate limiting issues
-        npm_install = [npm_path, "install", "--fetch-retries", "10"]
-        npm_build = [npm_path, "run", "build"]
+        npm_install_cmd = [npm_path, "install", "--fetch-retries", "10"]
+        npm_build_cmd = [npm_path, "run", "build"]
 
-        pwd = Path.cwd()
-        gui_path = pwd / "gui"
-        gui_build_path = gui_path / "build"
+        project_root = Path.cwd()
+        src = project_root / "gui"
+        dest = project_root / "matlab_proxy" / "gui"
 
-        if not gui_path.exists():
-            raise Exception(f"GUI directory not found: {gui_path}")
+        # Delete old installation
+        rmtree(dest, ignore_errors=True)
 
-        # Cleanup the build folder to ensure latest artifacts are generated
-        if gui_build_path.exists():
-            import shutil
-
-            shutil.rmtree(gui_build_path)
-
-        # Change to directory where GUI files are present
-        original_cwd = str(pwd)
-        os.chdir(gui_path)
-
+        # Install dependencies and build npm project
         try:
-            # Install dependencies and build GUI files
-            subprocess.run(npm_install, check=True)
-            subprocess.run(npm_build, check=True)
+            os.chdir(src)
+
+            # "npm install" creates: node_modules, package-lock.json
+            subprocess.run(npm_install_cmd, check=True)
+            print("npm installation completed successfully.")
+
+            # "npm build" creates writes to the "dest" directory as per vite.config.js
+            subprocess.run(npm_build_cmd, check=True)
+            # Create __init__.py files to make directories into Python modules
+            (dest / "__init__.py").touch(exist_ok=True)
+            for root, dirs, _ in os.walk(dest):
+                for directory in dirs:
+                    (Path(root) / directory / "__init__.py").touch(exist_ok=True)
+
+            print("npm build completed successfully.")
         finally:
-            os.chdir(original_cwd)
+            # Clean up build artifacts from npm install
+            if not os.environ.get("MWI_DEV", None):
+                rmtree(src / "node_modules", ignore_errors=True)
+            # Reset working directory
+            os.chdir(project_root)
 
-        if not gui_build_path.exists():
-            raise Exception(f"GUI build directory not found: {gui_build_path}")
-
-        # Copy built files to a temporary location that will be included in wheel
-        temp_gui_path = pwd / "matlab_proxy" / "gui"
-        temp_gui_path.mkdir(parents=True, exist_ok=True)
-
-        # Cleanup pre-existing gui files
-        if temp_gui_path.exists():
-            import shutil
-
-            shutil.rmtree(temp_gui_path)
-
-        copytree(gui_build_path, temp_gui_path)
-
-        # Create __init__.py files to make directories into Python modules
-        (temp_gui_path / "__init__.py").touch(exist_ok=True)
-        for root, dirs, _ in os.walk(temp_gui_path):
-            for directory in dirs:
-                (Path(root) / directory / "__init__.py").touch(exist_ok=True)
         print("Build hook step completed!")

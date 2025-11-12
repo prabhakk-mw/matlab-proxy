@@ -20,8 +20,6 @@ RUN apt-get update && \
     wget \
     curl \
     unzip \
-    xvfb \
-    fluxbox \
     ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
