@@ -34,10 +34,10 @@ class CustomBuildHook(BuildHookInterface):
 
         project_root = Path.cwd()
         src = project_root / "gui"
-        dest = project_root / "matlab_proxy" / "gui"
+        target = project_root / "matlab_proxy" / "gui"
 
         # Delete old installation
-        rmtree(dest, ignore_errors=True)
+        rmtree(target, ignore_errors=True)
 
         # Install dependencies and build npm project
         try:
@@ -47,11 +47,11 @@ class CustomBuildHook(BuildHookInterface):
             subprocess.run(npm_install_cmd, check=True)
             print("npm installation completed successfully.")
 
-            # "npm build" creates writes to the "dest" directory as per vite.config.js
+            # "npm build" runs "vite build" which writes the results to the "target" directory
             subprocess.run(npm_build_cmd, check=True)
             # Create __init__.py files to make directories into Python modules
-            (dest / "__init__.py").touch(exist_ok=True)
-            for root, dirs, _ in os.walk(dest):
+            (target / "__init__.py").touch(exist_ok=True)
+            for root, dirs, _ in os.walk(target):
                 for directory in dirs:
                     (Path(root) / directory / "__init__.py").touch(exist_ok=True)
 
