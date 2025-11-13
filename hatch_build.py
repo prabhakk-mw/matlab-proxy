@@ -9,6 +9,55 @@ from typing import Any, Dict
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 
 
+def _npm_build_required() -> bool:
+    """Check if there are any git changes (staged, unstaged, or untracked) in the matlab_proxy/gui folder.
+
+    Returns:
+        bool: True if there are changes, False otherwise
+    """
+
+    # Always rebuild in development mode
+    if os.environ.get("MWI_DEV", None):
+        return
+
+    try:
+        # Check if git is available
+        if not which("git"):
+            print("Git not found, assuming GUI changes exist.")
+            return True
+
+        # Check for any changes (staged, unstaged, or untracked) in the gui folder
+        result = subprocess.run(
+            ["git", "status", "--porcelain", "gui/"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        # If there's any output, there are changes
+        if result.stdout.strip():
+            print("Detected changes in gui/ directory.")
+            return True
+
+        # Check if there are any committed changes that haven't been pushed
+        result = subprocess.run(
+            ["git", "log", "@{u}..", "--pretty=format:%H", "--", "gui/"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        if result.stdout.strip():
+            print("Detected unpushed commits affecting gui/ directory.")
+            return True
+
+        print("No changes detected in gui/ directory, skipping npm build.")
+        return False
+    except Exception as e:
+        print(f"Error checking for GUI changes: {e}. Assuming changes exist.")
+        return True
+
+
 def _ensure_npm_compatibility(npm_path: str) -> None:
     if npm_path is None:
         raise EnvironmentError(
@@ -52,6 +101,13 @@ class CustomBuildHook(BuildHookInterface):
 
     def initialize(self, version: str, build_data: Dict[str, Any]) -> None:
         """Run npm install and build, then copy files to package."""
+
+        # Skip npm build if no GUI changes
+        if not _npm_build_required():
+            print(
+                "Skipping npm build process as no changes requiring a node rebuild were detected."
+            )
+            return
 
         npm_path = _get_npm()
 
