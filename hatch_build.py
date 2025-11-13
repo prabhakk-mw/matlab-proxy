@@ -3,7 +3,7 @@
 import os
 import subprocess
 from pathlib import Path
-from shutil import copytree, which, rmtree, move
+from shutil import which, rmtree
 from typing import Any, Dict
 
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
