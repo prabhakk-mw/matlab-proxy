@@ -29,6 +29,6 @@
             }
         }
     },
-    "postCreateCommand": "uv venv --clear --python 3.11 && . .venv/bin/activate && uv pip install . --cache-dir ./__uvcache__",
+    "postCreateCommand": "uv venv --clear && . .venv/bin/activate && uv pip install . --cache-dir ./__uvcache__",
     "waitFor": "postCreateCommand"
 }

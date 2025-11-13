@@ -8,6 +8,7 @@ export default defineConfig({
     build: {
     // Mimicking the structure produced by CRA to avoid changes to matlab-proxy's source code.
         outDir: '../matlab_proxy/gui',
+        emptyOutDir : true,
         assetsDir: 'static',
         rollupOptions: {
             output: {
