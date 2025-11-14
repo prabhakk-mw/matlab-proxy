@@ -8,8 +8,10 @@ from typing import Any, Dict
 
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 
+__BUILD_MARKER_FILE = "mw_npm_build_complete"
 
-def _npm_build_required() -> bool:
+
+def _is_npm_build_required(target_dir: Path) -> bool:
     """Check if there are any git changes (staged, unstaged, or untracked) in the matlab_proxy/gui folder.
 
     Returns:
@@ -18,9 +20,15 @@ def _npm_build_required() -> bool:
 
     # Always rebuild in development mode
     if os.environ.get("MWI_DEV", None):
-        return
+        return True
 
     try:
+        # Force re-build if build marker file does not exist
+        if not (target_dir / __BUILD_MARKER_FILE).exists():
+            print("Target directory does not exist, npm build is required.")
+            return True
+
+        ## If the marker file exists, proceed with build only if there are git changes
         # Check if git is available
         if not which("git"):
             print("Git not found, assuming GUI changes exist.")
@@ -81,18 +89,20 @@ def _ensure_npm_compatibility(npm_path: str) -> None:
 def _get_npm() -> Path:
     """Return path to npm executable, raise error if not found."""
     npm_path = which("npm")
-
     _ensure_npm_compatibility(npm_path)
-
     return Path(npm_path)
 
 
-def _initialize_as_python_modules(target_dir: Path) -> None:
+def _finalize_target_dir(target_dir: Path) -> None:
+    """Prepares target directory to be read as python modules and leaves build marker file."""
     # Create __init__.py files to make directories into Python modules
     (target_dir / "__init__.py").touch(exist_ok=True)
     for root, dirs, _ in os.walk(target_dir):
         for directory in dirs:
             (Path(root) / directory / "__init__.py").touch(exist_ok=True)
+
+    # Create build marker file, which can be used to skip future builds if no changes are detected
+    (target_dir / __BUILD_MARKER_FILE).touch(exist_ok=True)
 
 
 class CustomBuildHook(BuildHookInterface):
@@ -102,8 +112,12 @@ class CustomBuildHook(BuildHookInterface):
     def initialize(self, version: str, build_data: Dict[str, Any]) -> None:
         """Run npm install and build, then copy files to package."""
 
+        project_root = Path.cwd()
+        src_dir = project_root / "gui"
+        target_dir = project_root / "matlab_proxy" / "gui"
+
         # Skip npm build if no GUI changes
-        if not _npm_build_required():
+        if not _is_npm_build_required(target_dir=target_dir):
             print(
                 "Skipping npm build process as no changes requiring a node rebuild were detected."
             )
@@ -115,10 +129,6 @@ class CustomBuildHook(BuildHookInterface):
         npm_install_cmd = [npm_path, "install", "--fetch-retries", "10"]
         npm_build_cmd = [npm_path, "run", "build"]
 
-        project_root = Path.cwd()
-        src_dir = project_root / "gui"
-        target_dir = project_root / "matlab_proxy" / "gui"
-
         # Install dependencies and build npm project
         try:
             os.chdir(src_dir)
@@ -129,7 +139,7 @@ class CustomBuildHook(BuildHookInterface):
 
             # "npm build" runs "vite build" which writes the results to the target directory
             subprocess.run(npm_build_cmd, check=True)
-            _initialize_as_python_modules(target_dir=target_dir)
+            _finalize_target_dir(target_dir=target_dir)
             print("npm build completed successfully.")
         finally:
             # Clean up build artifacts from npm install
