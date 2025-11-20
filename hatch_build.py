@@ -95,7 +95,9 @@ def _get_npm() -> tuple[Path, int, int]:
     return (Path(npm_path), major, minor)
 
 
-def _finalize_target_dir(target_dir: Path, npm_major_ver:int, npm_minor_ver:int) -> None:
+def _finalize_target_dir(
+    target_dir: Path, npm_major_ver: int, npm_minor_ver: int
+) -> None:
     """Prepares target directory to be read as python modules and leaves build marker file."""
     # Create __init__.py files to make directories into Python modules
     (target_dir / "__init__.py").touch(exist_ok=True)
@@ -110,19 +112,24 @@ def _finalize_target_dir(target_dir: Path, npm_major_ver:int, npm_minor_ver:int)
     utc_timestamp = utc_now.timestamp()
 
     # Create build marker file, which can be used to skip future builds if no changes are detected
-    marker_file_name = target_dir/__BUILD_MARKER_FILE
-    new_content = f"Built date: {utc_timestamp} \nnpm_version: {npm_major_ver}.{npm_minor_ver}\n"
+    marker_file_name = target_dir / __BUILD_MARKER_FILE
+    new_content = (
+        f"Built date: {utc_timestamp} \nnpm_version: {npm_major_ver}.{npm_minor_ver}\n"
+    )
 
     try:
         # Open the file in 'w' mode.
         # If the file exists, its content will be truncated (erased).
         # If the file does not exist, a new file will be created.
-        with open(marker_file_name, 'w') as marker_file:
+        with open(marker_file_name, "w") as marker_file:
             marker_file.write(new_content)
 
     except IOError as e:
         print(f"Error writing to file: {e}")
-        raise EnvironmentError("Failed to create build marker file, check file permissions.")
+        raise EnvironmentError(
+            "Failed to create build marker file, check file permissions."
+        )
+
 
 class CustomBuildHook(BuildHookInterface):
     #  Identifier that connects this Python hook class to pyproject.toml configuration
@@ -158,7 +165,11 @@ class CustomBuildHook(BuildHookInterface):
 
             # "npm build" runs "vite build" which writes the results to the target directory
             subprocess.run(npm_build_cmd, check=True)
-            _finalize_target_dir(target_dir=target_dir, npm_major_ver=npm_major_ver, npm_minor_ver=npm_minor_ver)
+            _finalize_target_dir(
+                target_dir=target_dir,
+                npm_major_ver=npm_major_ver,
+                npm_minor_ver=npm_minor_ver,
+            )
             print("npm build completed successfully.")
         finally:
             # Clean up build artifacts from npm install
