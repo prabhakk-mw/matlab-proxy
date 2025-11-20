@@ -1,5 +1,6 @@
 # Copyright 2025 The MathWorks, Inc.
 
+import datetime
 import os
 import subprocess
 from pathlib import Path
@@ -8,7 +9,7 @@ from typing import Any, Dict
 
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 
-__BUILD_MARKER_FILE = "mw_npm_build_complete"
+__BUILD_MARKER_FILE = "mw_npm_build_marker.log"
 
 
 def _is_npm_build_required(target_dir: Path) -> bool:
@@ -84,16 +85,17 @@ def _ensure_npm_compatibility(npm_path: str) -> None:
         raise EnvironmentError(
             f"npm version {version_str} is not supported. Please upgrade to v11.3 or newer."
         )
+    return major, minor
 
 
-def _get_npm() -> Path:
+def _get_npm() -> tuple[Path, int, int]:
     """Return path to npm executable, raise error if not found."""
     npm_path = which("npm")
-    _ensure_npm_compatibility(npm_path)
-    return Path(npm_path)
+    major, minor = _ensure_npm_compatibility(npm_path)
+    return (Path(npm_path), major, minor)
 
 
-def _finalize_target_dir(target_dir: Path) -> None:
+def _finalize_target_dir(target_dir: Path, npm_major_ver:int, npm_minor_ver:int) -> None:
     """Prepares target directory to be read as python modules and leaves build marker file."""
     # Create __init__.py files to make directories into Python modules
     (target_dir / "__init__.py").touch(exist_ok=True)
@@ -101,9 +103,26 @@ def _finalize_target_dir(target_dir: Path) -> None:
         for directory in dirs:
             (Path(root) / directory / "__init__.py").touch(exist_ok=True)
 
-    # Create build marker file, which can be used to skip future builds if no changes are detected
-    (target_dir / __BUILD_MARKER_FILE).touch(exist_ok=True)
+    # Get current time in UTC, as a timezone-aware datetime object
+    utc_now = datetime.datetime.now(datetime.timezone.utc)
 
+    # Convert the UTC datetime object to a Unix timestamp
+    utc_timestamp = utc_now.timestamp()
+
+    # Create build marker file, which can be used to skip future builds if no changes are detected
+    marker_file_name = target_dir/__BUILD_MARKER_FILE
+    new_content = f"Built date: {utc_timestamp} \nnpm_version: {npm_major_ver}.{npm_minor_ver}\n"
+
+    try:
+        # Open the file in 'w' mode.
+        # If the file exists, its content will be truncated (erased).
+        # If the file does not exist, a new file will be created.
+        with open(marker_file_name, 'w') as marker_file:
+            marker_file.write(new_content)
+
+    except IOError as e:
+        print(f"Error writing to file: {e}")
+        raise EnvironmentError("Failed to create build marker file, check file permissions.")
 
 class CustomBuildHook(BuildHookInterface):
     #  Identifier that connects this Python hook class to pyproject.toml configuration
@@ -123,7 +142,7 @@ class CustomBuildHook(BuildHookInterface):
             )
             return
 
-        npm_path = _get_npm()
+        npm_path, npm_major_ver, npm_minor_ver = _get_npm()
 
         # Adding retries to npm install to avoid transient rate limiting issues
         npm_install_cmd = [npm_path, "install", "--fetch-retries", "10"]
@@ -139,7 +158,7 @@ class CustomBuildHook(BuildHookInterface):
 
             # "npm build" runs "vite build" which writes the results to the target directory
             subprocess.run(npm_build_cmd, check=True)
-            _finalize_target_dir(target_dir=target_dir)
+            _finalize_target_dir(target_dir=target_dir, npm_major_ver=npm_major_ver, npm_minor_ver=npm_minor_ver)
             print("npm build completed successfully.")
         finally:
             # Clean up build artifacts from npm install
