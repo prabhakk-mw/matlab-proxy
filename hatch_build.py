@@ -10,6 +10,7 @@ from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 
 MIN_NPM_VERSION = "11.6"
 
+
 def _ensure_npm_compatibility(npm_path: str) -> None:
     """
     Ensure that npm is installed and meets the minimum version requirement.
